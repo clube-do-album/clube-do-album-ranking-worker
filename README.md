@@ -10,6 +10,7 @@ Worker responsavel pelo processamento de eventos de ranking da plataforma Clube 
 - Consumir eventos `ALBUM_RATED` publicados pela Ratings API.
 - Salvar a ultima nota de cada usuario por album.
 - Recalcular media, total de avaliacoes, score e posicao do ranking.
+- Expor endpoints HTTP para consultar o ranking calculado.
 
 ## Tecnologias usadas
 
@@ -32,6 +33,7 @@ Variaveis esperadas:
 ```env
 DATABASE_URL=postgresql://clube:clube@127.0.0.1:15432/clube_do_album_ranking
 RABBITMQ_URL=amqp://clube:clube@localhost:5672
+SERVER_PORT=3002
 
 RABBITMQ_EXCHANGE=clube-do-album.events
 ALBUM_IMPORTED_QUEUE=ranking.album-imported.queue
@@ -94,6 +96,52 @@ Build TypeScript:
 
 ```bash
 npm run build
+```
+
+## Endpoints HTTP
+
+### Health check
+
+```http
+GET /health
+```
+
+Exemplo:
+
+```bash
+curl.exe http://localhost:3002/health
+```
+
+### Listar ranking
+
+```http
+GET /rankings
+```
+
+Query params:
+
+```text
+limit: quantidade maxima de itens retornados, padrao 20, maximo 100
+```
+
+Exemplo:
+
+```bash
+curl.exe "http://localhost:3002/rankings?limit=10"
+```
+
+### Buscar ranking de um album
+
+```http
+GET /rankings/:albumId
+```
+
+O parametro aceita o `albumId` interno ou o `spotifyId`, quando o album ja foi importado.
+
+Exemplo:
+
+```bash
+curl.exe http://localhost:3002/rankings/uuid-do-album
 ```
 
 ## Eventos consumidos
@@ -246,6 +294,23 @@ Execucao local:
 docker run --env-file .env clube-do-album-ranking-worker
 ```
 
+Execucao em container na network local:
+
+```bash
+docker run -d --name clube-do-album-ranking-worker \
+  --network clube-do-album-network \
+  -e SERVER_PORT=3002 \
+  -e DATABASE_URL=postgresql://clube:clube@clube-do-album-postgres:5432/clube_do_album_ranking \
+  -e RABBITMQ_URL=amqp://clube:clube@clube-do-album-rabbitmq:5672 \
+  -e RABBITMQ_EXCHANGE=clube-do-album.events \
+  -e ALBUM_IMPORTED_QUEUE=ranking.album-imported.queue \
+  -e ALBUM_IMPORTED_ROUTING_KEY=album.imported \
+  -e ALBUM_RATED_QUEUE=ranking.album-rated.queue \
+  -e ALBUM_RATED_ROUTING_KEY=album.rated \
+  -p 3002:3002 \
+  clube-do-album-ranking-worker
+```
+
 ## Status atual
 
-Worker consome `ALBUM_IMPORTED` e `ALBUM_RATED`. A partir das avaliacoes, mantem snapshots por usuario/album e recalcula o ranking em `album_rankings`.
+Worker consome `ALBUM_IMPORTED` e `ALBUM_RATED`. A partir das avaliacoes, mantem snapshots por usuario/album, recalcula o ranking em `album_rankings` e expoe endpoints HTTP para consulta.

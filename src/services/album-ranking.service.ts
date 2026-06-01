@@ -5,6 +5,14 @@ import { AlbumRankingRepository } from '../repositories/album-ranking.repository
 const albumRankingRepository = new AlbumRankingRepository();
 
 export class AlbumRankingService {
+  async listRankings(limit: number) {
+    return albumRankingRepository.listRankings(limit);
+  }
+
+  async findRanking(albumIdOrSpotifyId: string) {
+    return albumRankingRepository.findByAlbumIdOrSpotifyId(albumIdOrSpotifyId);
+  }
+
   async handleAlbumImported(event: AlbumImportedEvent): Promise<void> {
     const existingRanking = await albumRankingRepository.findByAlbumId(event.albumId);
 
