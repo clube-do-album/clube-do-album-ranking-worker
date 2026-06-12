@@ -36,6 +36,7 @@ RABBITMQ_URL=amqp://clube:clube@localhost:5672
 SERVER_PORT=3002
 
 RABBITMQ_EXCHANGE=clube-do-album.events
+RABBITMQ_DEAD_LETTER_EXCHANGE=clube-do-album.dead-letter
 ALBUM_IMPORTED_QUEUE=ranking.album-imported.queue
 ALBUM_IMPORTED_ROUTING_KEY=album.imported
 ALBUM_RATED_QUEUE=ranking.album-rated.queue
@@ -145,6 +146,23 @@ curl.exe http://localhost:3002/rankings/uuid-do-album
 ```
 
 ## Eventos consumidos
+
+## Dead Letter Queues
+
+As filas consumidas por este worker usam dead letter para mensagens rejeitadas com `nack(..., false, false)`.
+
+```text
+Dead letter exchange: clube-do-album.dead-letter
+Tipo: direct
+Filas:
+  ranking.album-imported.queue.dlq
+  ranking.album-rated.queue.dlq
+Routing keys:
+  ranking.album-imported.queue.dead
+  ranking.album-rated.queue.dead
+```
+
+Se as filas principais ja existirem no RabbitMQ sem argumentos de dead letter, recrie as filas antes de subir a nova versao do worker.
 
 ### ALBUM_IMPORTED
 
@@ -303,6 +321,7 @@ docker run -d --name clube-do-album-ranking-worker \
   -e DATABASE_URL=postgresql://clube:clube@clube-do-album-postgres:5432/clube_do_album_ranking \
   -e RABBITMQ_URL=amqp://clube:clube@clube-do-album-rabbitmq:5672 \
   -e RABBITMQ_EXCHANGE=clube-do-album.events \
+  -e RABBITMQ_DEAD_LETTER_EXCHANGE=clube-do-album.dead-letter \
   -e ALBUM_IMPORTED_QUEUE=ranking.album-imported.queue \
   -e ALBUM_IMPORTED_ROUTING_KEY=album.imported \
   -e ALBUM_RATED_QUEUE=ranking.album-rated.queue \
