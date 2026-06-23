@@ -21,9 +21,10 @@ interface SaveRatingData {
 }
 
 export class AlbumRankingRepository {
-  listRankings(limit: number) {
+  listRankings({ limit, skip }: { limit: number; skip: number }) {
     return prisma.albumRanking.findMany({
       take: limit,
+      skip,
       orderBy: [
         {
           position: 'asc',
@@ -36,6 +37,10 @@ export class AlbumRankingRepository {
         },
       ],
     });
+  }
+
+  countRankings() {
+    return prisma.albumRanking.count();
   }
 
   findByAlbumId(albumId: string) {

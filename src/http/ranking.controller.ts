@@ -9,7 +9,8 @@ rankingRouter.get('/rankings', async (request, response, next) => {
   try {
     const rawLimit = request.query.limit;
     const limit = normalizeLimit(typeof rawLimit === 'string' ? rawLimit : undefined);
-    const rankings = await albumRankingService.listRankings(limit);
+    const page = normalizePage(request.query.page);
+    const rankings = await albumRankingService.listRankings({ page, limit });
 
     response.json(rankings);
   } catch (error) {
@@ -46,4 +47,18 @@ function normalizeLimit(value?: string): number {
   }
 
   return Math.min(parsed, 100);
+}
+
+function normalizePage(value: unknown): number {
+  if (typeof value !== 'string') {
+    return 1;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return 1;
+  }
+
+  return parsed;
 }

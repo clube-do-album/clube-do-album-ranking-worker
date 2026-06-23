@@ -5,8 +5,21 @@ import { AlbumRankingRepository } from '../repositories/album-ranking.repository
 const albumRankingRepository = new AlbumRankingRepository();
 
 export class AlbumRankingService {
-  async listRankings(limit: number) {
-    return albumRankingRepository.listRankings(limit);
+  async listRankings({ page, limit }: { page: number; limit: number }) {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      albumRankingRepository.listRankings({ limit, skip }),
+      albumRankingRepository.countRankings(),
+    ]);
+
+    return {
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      hasNextPage: page * limit < total,
+    };
   }
 
   async findRanking(albumIdOrSpotifyId: string) {
