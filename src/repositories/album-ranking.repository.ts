@@ -20,11 +20,20 @@ interface SaveRatingData {
   rating: number;
 }
 
+const MIN_RATINGS_FOR_RANKING = 3;
+const DEFAULT_AVERAGE_RATING = 3.5;
+const MIN_RATINGS_WEIGHT = 3;
+
 export class AlbumRankingRepository {
   listRankings({ limit, skip }: { limit: number; skip: number }) {
     return prisma.albumRanking.findMany({
       take: limit,
       skip,
+      where: {
+        totalRatings: {
+          gte: MIN_RATINGS_FOR_RANKING,
+        },
+      },
       orderBy: [
         {
           position: 'asc',
@@ -40,7 +49,13 @@ export class AlbumRankingRepository {
   }
 
   countRankings() {
-    return prisma.albumRanking.count();
+    return prisma.albumRanking.count({
+      where: {
+        totalRatings: {
+          gte: MIN_RATINGS_FOR_RANKING,
+        },
+      },
+    });
   }
 
   findByAlbumId(albumId: string) {
@@ -199,7 +214,7 @@ export class AlbumRankingRepository {
 
       const averageRating = roundRating(aggregate._avg.rating ?? 0);
       const totalRatings = aggregate._count.rating;
-      const score = averageRating;
+      const score = calculateRankingScore(averageRating, totalRatings);
 
       const ranking = await transaction.albumRanking.upsert({
         where: {
@@ -231,8 +246,36 @@ function roundRating(value: number): number {
   return Number(value.toFixed(2));
 }
 
+function calculateRankingScore(averageRating: number, totalRatings: number): number {
+  if (totalRatings < MIN_RATINGS_FOR_RANKING) {
+    return 0;
+  }
+
+  const weightedScore =
+    (totalRatings / (totalRatings + MIN_RATINGS_WEIGHT)) * averageRating +
+    (MIN_RATINGS_WEIGHT / (totalRatings + MIN_RATINGS_WEIGHT)) * DEFAULT_AVERAGE_RATING;
+
+  return roundRating(weightedScore);
+}
+
 async function recalculatePositions(transaction: Prisma.TransactionClient) {
+  await transaction.albumRanking.updateMany({
+    where: {
+      totalRatings: {
+        lt: MIN_RATINGS_FOR_RANKING,
+      },
+    },
+    data: {
+      position: null,
+    },
+  });
+
   const rankings = await transaction.albumRanking.findMany({
+    where: {
+      totalRatings: {
+        gte: MIN_RATINGS_FOR_RANKING,
+      },
+    },
     orderBy: [
       {
         score: 'desc',
